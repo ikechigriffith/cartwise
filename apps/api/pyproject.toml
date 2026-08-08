@@ -1,0 +1,25 @@
+[project]
+name = "groceries-api"
+version = "0.1.0"
+description = "FastAPI backend for grocery shopping optimization"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi==0.115.6",
+  "uvicorn[standard]==0.34.0",
+  "sqlalchemy==2.0.36",
+  "alembic==1.14.0",
+  "psycopg[binary]==3.2.3",
+  "celery==5.4.0",
+  "redis==5.2.1",
+  "pydantic-settings==2.7.0",
+  "playwright==1.49.1",
+  "openpyxl==3.1.5",
+  "pypdf==5.1.0",
+]
+
+[dependency-groups]
+dev = [
+  "httpx==0.28.1",
+  "pytest==8.3.4",
+  "ruff==0.8.4",
+]

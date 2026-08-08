@@ -1,0 +1,7 @@
+{$WEB_DOMAIN:localhost} {
+  reverse_proxy web:3000
+}
+
+{$API_DOMAIN:localhost:8000} {
+  reverse_proxy api:8000
+}

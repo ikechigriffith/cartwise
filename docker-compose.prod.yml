@@ -1,0 +1,13 @@
+services:
+  web:
+    image: ${WEB_IMAGE}
+    build: null
+    command: npm run start
+
+  api:
+    image: ${API_IMAGE}
+    build: null
+
+  worker:
+    image: ${API_IMAGE}
+    build: null

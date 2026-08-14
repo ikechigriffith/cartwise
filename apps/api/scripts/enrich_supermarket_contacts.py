@@ -66,6 +66,20 @@ KNOWN_RETAILER_CONTACTS = {
         "facebook": "https://www.facebook.com/pennysaversupermarket",
         "phone": "+1 868-639-2708",
     },
+    "Bel Air Store": {
+        "website": "https://belairstore.com",
+        "facebook": "https://www.facebook.com/belairstoreltd",
+        "instagram": "https://www.instagram.com/belairstoreltd",
+        "phone": "+1 868-658-3545",
+        "whatsapp": "+1 868-385-2395",
+        "customer_support_line": "+1 868-658-0191",
+    },
+    "West Bees": {
+        "website": "https://westbees.com",
+        "facebook": "https://www.facebook.com/westbeessupermarket",
+        "instagram": "https://www.instagram.com/westbeessupermarket",
+        "phone": "+1 868-632-8150",
+    },
 }
 
 

@@ -172,6 +172,22 @@ def upsert_listing(session, store: Store, product: dict[str, Any], checked_at: d
             ProductListing.source == "pricesmart_api",
         )
     )
+    raw_tags = product.get("promoid_TT") or []
+    tags_lower = [str(t).lower() for t in raw_tags]
+    orig_price_raw = product.get("original_price_without_saving_TT")
+    try:
+        regular_price = Decimal(str(orig_price_raw)) if orig_price_raw else None
+    except Exception:
+        regular_price = None
+
+    is_sale = (
+        "specialsavings" in tags_lower
+        or "clearance" in tags_lower
+        or "manufacturer savings" in tags_lower
+        or any("saving" in t for t in tags_lower)
+        or (regular_price is not None and price is not None and regular_price > price)
+    )
+
     payload = {
         "store_id": store.id,
         "retailer_product_id": sku,
@@ -182,6 +198,10 @@ def upsert_listing(session, store: Store, product: dict[str, Any], checked_at: d
         "raw_brand": product.get("brand"),
         "normalized_brand": identity.normalized_brand,
         "price": price,
+        "is_on_sale": is_sale,
+        "regular_price": regular_price,
+        "promotional_tags": raw_tags,
+        "sale_ends_at": None,
         "currency": "TTD",
         "price_per_unit": price_per_unit,
         "package_quantity": package.package_quantity,
@@ -247,6 +267,9 @@ def record_price_observation(session, store: Store, canonical: CanonicalProduct,
         store_id=store.id,
         region_code="TT",
         price=listing.price,
+        is_on_sale=listing.is_on_sale,
+        regular_price=listing.regular_price,
+        promotional_tags=listing.promotional_tags,
         currency=listing.currency or "TTD",
         price_per_unit=listing.computed_price_per_unit,
         observed_at=checked_at,

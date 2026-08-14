@@ -263,6 +263,22 @@ def get_or_create_canonical(
     return canonical
 
 
+PROMO_PATTERN = re.compile(
+    r"\b(bonus pack|value pack|value size|special offer|bogo|buy \d+\s*get \d+\s*(?:free)?|free\s+(?:item|gift|sample)|\d+%\s*more|\d+%\s*off|save \$\d+|special price|twin pack|combo pack)\b",
+    re.IGNORECASE,
+)
+
+
+def detect_promotional_tags(name: str, description: str | None = None) -> list[str]:
+    tags = []
+    text_to_check = f"{name} {description or ''}"
+    for match in PROMO_PATTERN.finditer(text_to_check):
+        tag = match.group(0).lower().replace(" ", "-")
+        if tag not in tags:
+            tags.append(tag)
+    return tags
+
+
 def upsert_listing(
     session,
     store: Store,
@@ -284,6 +300,31 @@ def upsert_listing(
             ProductListing.source == SOURCE,
         )
     )
+
+    promotional_tags = detect_promotional_tags(name, product.get("description"))
+    regular_price = None
+    is_on_sale = False
+
+    if listing and listing.price is not None and price is not None:
+        baseline_price = listing.regular_price or listing.price
+        if price < baseline_price:
+            is_on_sale = True
+            regular_price = baseline_price
+            if "price-drop" not in promotional_tags:
+                promotional_tags.append("price-drop")
+        elif price > baseline_price:
+            is_on_sale = False
+            regular_price = None
+        else:
+            if listing.regular_price is not None and price < listing.regular_price:
+                is_on_sale = True
+                regular_price = listing.regular_price
+            else:
+                is_on_sale = False
+                regular_price = None
+
+    explicit_deal_tag = any(t in promotional_tags for t in ["bogo", "special-offer", "special-price"]) or any("%-off" in t for t in promotional_tags)
+
     payload = {
         "store_id": store.id,
         "retailer_product_id": sku,
@@ -294,6 +335,10 @@ def upsert_listing(
         "raw_brand": brand,
         "normalized_brand": identity.normalized_brand,
         "price": price,
+        "is_on_sale": is_on_sale or explicit_deal_tag,
+        "regular_price": regular_price,
+        "promotional_tags": promotional_tags,
+        "sale_ends_at": None,
         "currency": "TTD",
         "price_per_unit": package.computed_price_per_unit,
         "package_quantity": package.package_quantity,
@@ -358,6 +403,9 @@ def record_price_observation(session, store: Store, canonical: CanonicalProduct,
         store_id=store.id,
         region_code="TT",
         price=listing.price,
+        is_on_sale=listing.is_on_sale,
+        regular_price=listing.regular_price,
+        promotional_tags=listing.promotional_tags,
         currency=listing.currency or "TTD",
         price_per_unit=listing.computed_price_per_unit,
         observed_at=checked_at,

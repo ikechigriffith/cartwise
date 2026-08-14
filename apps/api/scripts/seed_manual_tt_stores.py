@@ -81,6 +81,23 @@ MANUAL_STORES = [
         "longitude": -61.4850812,
         "source_notes": "Seeded manually from public OSM/Nominatim result for PriceSmart, Penal-Debe.",
     },
+    {
+        "retailer": "Bel Air Store",
+        "retailer_website": "https://belairstore.com/",
+        "external_id": "belair-marabella",
+        "name": "Bel Air Store Marabella",
+        "store_type": "supermarket",
+        "address": {
+            "road": "2 Gopaul Circular Drive",
+            "suburb": "Union Park East",
+            "city": "Marabella",
+            "state": "San Fernando",
+            "country": "Trinidad and Tobago",
+        },
+        "latitude": 10.3015,
+        "longitude": -61.4428,
+        "source_notes": "Flagship physical store & wholesale/retail hub for Bel Air Store Limited in Marabella, Trinidad.",
+    },
 ]
 
 

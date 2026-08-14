@@ -13,6 +13,7 @@ from app.models import (
     ProductFamily,
     ProductListing,
     ProductMapping,
+    ProductPriceObservation,
     Retailer,
     Store,
 )
@@ -236,12 +237,39 @@ def upsert_mapping(session, listing: ProductListing, canonical: CanonicalProduct
     )
 
 
+def record_price_observation(session, store: Store, canonical: CanonicalProduct, listing: ProductListing, product: dict, checked_at: datetime) -> bool:
+    if listing.price is None:
+        return False
+    now = now_utc()
+    obs = ProductPriceObservation(
+        canonical_product_id=canonical.id,
+        retailer_id=store.retailer_id,
+        store_id=store.id,
+        region_code="TT",
+        price=listing.price,
+        currency=listing.currency or "TTD",
+        price_per_unit=listing.computed_price_per_unit,
+        observed_at=checked_at,
+        source=listing.source or "pricesmart_api",
+        source_url=listing.source_url,
+        raw_store_name=store.name,
+        raw_item_name=listing.raw_name,
+        match_confidence=1.0,
+        raw_payload=product if isinstance(product, dict) else {},
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(obs)
+    return True
+
+
 def import_products() -> None:
     products = fetch_all_products()
     checked_at = now_utc()
 
     inserted_or_updated_listings = 0
     mapped = 0
+    observations = 0
 
     with SessionLocal() as session:
         retailer = session.scalar(select(Retailer).where(Retailer.name == "PriceSmart"))
@@ -259,8 +287,10 @@ def import_products() -> None:
             for store in stores:
                 listing = upsert_listing(session, store, product, checked_at)
                 upsert_mapping(session, listing, canonical)
+                record_price_observation(session, store, canonical, listing, product, checked_at)
                 inserted_or_updated_listings += 1
                 mapped += 1
+                observations += 1
         session.commit()
 
     print(
@@ -270,6 +300,7 @@ def import_products() -> None:
                 "stores": len(stores),
                 "listings_inserted_or_updated": inserted_or_updated_listings,
                 "mappings_inserted_or_updated": mapped,
+                "observations_logged": observations,
             },
             indent=2,
         )

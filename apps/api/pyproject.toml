@@ -15,6 +15,8 @@ dependencies = [
   "playwright==1.49.1",
   "openpyxl==3.1.5",
   "pypdf==5.1.0",
+  "matplotlib>=3.11.1",
+  "pandas>=3.0.5",
 ]
 
 [dependency-groups]
@@ -23,3 +25,7 @@ dev = [
   "pytest==8.3.4",
   "ruff==0.8.4",
 ]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+

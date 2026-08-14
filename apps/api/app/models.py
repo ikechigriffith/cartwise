@@ -39,6 +39,7 @@ class Retailer(TimestampMixin, Base):
     website_url: Mapped[str | None] = mapped_column(Text)
     integration_type: Mapped[str] = mapped_column(String(50), default="scrape")
     loyalty_program_supported: Mapped[bool] = mapped_column(Boolean, default=False)
+    contact_info: Mapped[dict | None] = mapped_column(JSONB(none_as_null=True))
 
     stores: Mapped[list["Store"]] = relationship(back_populates="retailer")
     data_sources: Mapped[list["RetailerDataSource"]] = relationship(back_populates="retailer")

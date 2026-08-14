@@ -3,18 +3,19 @@ from sqlalchemy.orm import Session
 
 from app.deps import get_db
 from app.models import Retailer, Store
+from app.schemas.api_responses import StoreListResponse
 
 router = APIRouter()
 
 
-@router.get("/stores")
-def stores(q: str | None = None, limit: int = 500, offset: int = 0, db: Session = Depends(get_db)) -> dict:
+@router.get("/stores", response_model=StoreListResponse)
+def stores(q: str | None = None, limit: int = 500, offset: int = 0, db: Session = Depends(get_db)) -> StoreListResponse:
     query = db.query(Store).join(Retailer).order_by(Retailer.name, Store.name)
     if q:
         query = query.filter(Store.name.ilike(f"%{q}%"))
     items = query.limit(limit).offset(offset).all()
-    return {
-        "items": [
+    return StoreListResponse(
+        items=[
             {
                 "id": item.id,
                 "name": item.name,
@@ -27,4 +28,4 @@ def stores(q: str | None = None, limit: int = 500, offset: int = 0, db: Session 
             }
             for item in items
         ]
-    }
+    )

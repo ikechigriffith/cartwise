@@ -7,8 +7,8 @@ from sqlalchemy import and_, func, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.models import ProductPriceObservation, Store, StoreAlias, StoreCandidate, StoreCandidateReview, now_utc
+from app.product_identity import normalize
 from app.schemas.store_review import CandidateResolutionRequest, CreateStoreFromCandidateRequest
-from scripts.import_tradeind_price_data import normalize
 
 TRADEIND_OBSERVATION_SOURCES = {"tradeind_xlsx", "tradeind_pdf_text"}
 

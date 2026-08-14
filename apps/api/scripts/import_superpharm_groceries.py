@@ -13,6 +13,7 @@ from app.models import (
     ProductFamily,
     ProductListing,
     ProductMapping,
+    ProductPriceObservation,
     Retailer,
     RetailerDataSource,
     Store,
@@ -347,6 +348,32 @@ def upsert_mapping(session, listing: ProductListing, canonical: CanonicalProduct
     )
 
 
+def record_price_observation(session, store: Store, canonical: CanonicalProduct, listing: ProductListing, product: dict, checked_at: datetime) -> bool:
+    if listing.price is None:
+        return False
+    now = now_utc()
+    obs = ProductPriceObservation(
+        canonical_product_id=canonical.id,
+        retailer_id=store.retailer_id,
+        store_id=store.id,
+        region_code="TT",
+        price=listing.price,
+        currency=listing.currency or "TTD",
+        price_per_unit=listing.computed_price_per_unit,
+        observed_at=checked_at,
+        source=listing.source or SOURCE,
+        source_url=listing.source_url,
+        raw_store_name=store.name,
+        raw_item_name=listing.raw_name,
+        match_confidence=1.0,
+        raw_payload=product if isinstance(product, dict) else {},
+        created_at=now,
+        updated_at=now,
+    )
+    session.add(obs)
+    return True
+
+
 def import_products() -> None:
     app_version = fetch_app_version()
     api_stores = fetch_stores(app_version)
@@ -355,6 +382,7 @@ def import_products() -> None:
     checked_at = now_utc()
     listings_upserted = 0
     mappings_upserted = 0
+    observations_logged = 0
     stale_listings = 0
 
     with SessionLocal() as session:
@@ -371,8 +399,10 @@ def import_products() -> None:
             for store in stores_by_code.values():
                 listing = upsert_listing(session, store, product, name, brand, checked_at)
                 upsert_mapping(session, listing, canonical)
+                record_price_observation(session, store, canonical, listing, product, checked_at)
                 listings_upserted += 1
                 mappings_upserted += 1
+                observations_logged += 1
 
         old_listings = session.scalars(
             select(ProductListing).where(

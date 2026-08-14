@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -62,6 +63,15 @@ def normalize_product_text(value: str | None) -> str:
     value = _ascii_fold(value).lower().replace("'", "")
     value = PUNCT_RE.sub(" ", value)
     return re.sub(r"\s+", " ", value).strip()
+
+
+def normalize(value: str | None) -> str:
+    if not value:
+        return ""
+    value = html.unescape(str(value)).lower().replace("’", "'")
+    value = re.sub(r"[^a-z0-9']+", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
+
 
 
 def derive_family_name(raw_name: str | None, brand: str | None = None, size: str | None = None) -> str:

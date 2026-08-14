@@ -1,26 +1,22 @@
-from typing import List, Optional
 from datetime import datetime, timezone
 from uuid import UUID
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from sqlalchemy.sql import func
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.models import (
+    CanonicalProduct,
     GroceryList,
     GroceryListItem,
     ProposedPlan,
-    PlanAlternative,
-    Stop,
-    ItemAssignment,
-    CanonicalProduct,
-    Store,
-    ProductListing,
 )
+
+
 class CompilationService:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: Session):
         self.session = session
 
-    async def compile_plan(
+    def compile_plan(
         self,
         grocery_list_id: UUID,
         fulfillment_method: str,
@@ -41,65 +37,50 @@ class CompilationService:
         Returns:
             The generated ProposedPlan.
         """
-        # 1. Fetch the grocery list and its items
-        result = await self.session.execute(
+        grocery_list = self.session.scalar(
             select(GroceryList).where(GroceryList.id == grocery_list_id)
         )
-        grocery_list = await result.scalar_one_or_none()
         if not grocery_list:
             raise ValueError("Grocery list not found")
 
-        items = await self.session.execute(
-            select(GroceryListItem).where(GroceryListItem.grocery_list_id == grocery_list_id)
+        grocery_items = list(
+            self.session.scalars(
+                select(GroceryListItem).where(GroceryListItem.grocery_list_id == grocery_list_id)
+            ).all()
         )
-        grocery_items = items.scalars().all()
 
-        # 2. Resolve items to CanonicalProducts
-        # This is where we handle substitutions and preferences
-        # For now, we'll just take the first match or something simple
         resolved_items = []
         for item in grocery_items:
-            # For now, we'll just use a placeholder logic to find a canonical product
-            # In a real implementation, this would involve more complex logic
-            canonical_product = await self._resolve_item_to_canonical(item)
+            canonical_product = self._resolve_item_to_canonical(item)
             resolved_items.append((item, canonical_product))
 
         if fulfillment_method == "guided":
-            plan = await self._compile_guided_plan(resolved_items, start_location, transit_mode, radius)
+            plan = self._compile_guided_plan(grocery_list_id, resolved_items, start_location, transit_mode, radius)
         elif fulfillment_method == "outsourced":
-            plan = await self._compile_outsourced_plan(resolved_items, start_location, transit_mode, radius)
+            plan = self._compile_outsourced_plan(grocery_list_id, resolved_items, start_location, transit_mode, radius)
         else:
             raise ValueError(f"Unknown fulfillment method: {fulfillment_method}")
 
         return plan
 
-    async def _resolve_item_to_canonical(self, item: GroceryListItem) -> CanonicalProduct:
-        # Placeholder: find any canonical product for this product family
-        result = await self.session.execute(
+    def _resolve_item_to_canonical(self, item: GroceryListItem) -> CanonicalProduct:
+        canonical_product = self.session.scalar(
             select(CanonicalProduct).where(CanonicalProduct.product_family_id == item.product_family_id)
         )
-        canonical_product = await result.scalar_one_or_none()
         if not canonical_product:
-            # If no canonical product, maybe we have to create one or handle the error
             raise ValueError(f"No canonical product found for product family {item.product_family_id}")
         return canonical_product
 
-    async def _compile_guided_plan(
+    def _compile_guided_plan(
         self,
-        resolved_items: List[tuple[GroceryListItem, CanonicalProduct]],
+        grocery_list_id: UUID,
+        resolved_items: list[tuple[GroceryListItem, CanonicalProduct]],
         start_location: dict,
         transit_mode: str,
         radius: float,
     ) -> ProposedPlan:
-        # 1. Find stores and best listings for each canonical product
-        # 2. Select the best stores (e.g., cheapest, closest)
-        # 3. Optimize the route (TSP/VRP)
-        # 4. Create stops and item assignments
-        # 5. Calculate metrics
-        
-        # For now, return a dummy plan to get the structure right
         plan = ProposedPlan(
-            grocery_list_id=resolved_items[0][0].grocery_list_id,
+            grocery_list_id=grocery_list_id,
             fulfillment_method="guided",
             planned_start_time=datetime.now(timezone.utc),
             start_location=start_location,
@@ -109,22 +90,20 @@ class CompilationService:
             freshness_labels={},
         )
         self.session.add(plan)
-        await self.session.commit()
+        self.session.commit()
+        self.session.refresh(plan)
         return plan
 
-    async def _compile_outsourced_plan(
+    def _compile_outsourced_plan(
         self,
-        resolved_items: List[tuple[GroceryListItem, CanonicalProduct]],
+        grocery_list_id: UUID,
+        resolved_items: list[tuple[GroceryListItem, CanonicalProduct]],
         start_location: dict,
         transit_mode: str,
         radius: float,
     ) -> ProposedPlan:
-        # 1. Find a store/service that offers outsourced fulfillment
-        # 2. Create a plan with a single stop
-        # 3. Calculate metrics
-        
         plan = ProposedPlan(
-            grocery_list_id=resolved_items[0][0].grocery_list_id,
+            grocery_list_id=grocery_list_id,
             fulfillment_method="outsourced",
             planned_start_time=datetime.now(timezone.utc),
             start_location=start_location,
@@ -134,5 +113,6 @@ class CompilationService:
             freshness_labels={},
         )
         self.session.add(plan)
-        await self.session.commit()
+        self.session.commit()
+        self.session.refresh(plan)
         return plan

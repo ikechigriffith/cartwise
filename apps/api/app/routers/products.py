@@ -1,4 +1,5 @@
 from decimal import Decimal
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
@@ -6,24 +7,24 @@ from sqlalchemy.orm import Session
 
 from app.deps import get_db
 from app.product_identity import normalize_product_text
-
+from app.schemas.api_responses import ProductSearchResponse
 
 router = APIRouter()
 
 
-def _json_value(value):
+def _json_value(value: Any) -> Any:
     if isinstance(value, Decimal):
         return float(value)
     return value
 
 
-@router.get("/products/search")
-def search_products(q: str, limit: int = 25, db: Session = Depends(get_db)) -> dict:
+@router.get("/products/search", response_model=ProductSearchResponse)
+def search_products(q: str, limit: int = 25, db: Session = Depends(get_db)) -> ProductSearchResponse:
     tokens = [token for token in normalize_product_text(q).split() if token]
     if not tokens:
-        return {"items": []}
+        return ProductSearchResponse(items=[])
 
-    params = {"limit": limit}
+    params: dict[str, Any] = {"limit": limit}
     conditions = []
     for index, token in enumerate(tokens):
         key = f"token_{index}"
@@ -85,8 +86,8 @@ def search_products(q: str, limit: int = 25, db: Session = Depends(get_db)) -> d
         """
     )
     rows = db.execute(sql, params).mappings().all()
-    return {
-        "items": [
+    return ProductSearchResponse(
+        items=[
             {
                 "id": str(row["id"]),
                 "canonical_name": row["canonical_name"],
@@ -107,4 +108,4 @@ def search_products(q: str, limit: int = 25, db: Session = Depends(get_db)) -> d
             }
             for row in rows
         ]
-    }
+    )
